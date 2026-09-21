@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>เลือกรถ เลือกทาง</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --asphalt: #22252A;
+    --asphalt-2: #2C3036;
+    --line-yellow: #F0B429;
+    --line-white: #EDEDE8;
+    --steel: #40454D;
+    --go-green: #3FA36B;
+    --muted: #9AA0A8;
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    padding:0;
+    height:100%;
+    background:var(--asphalt);
+  }
+  body{
+    font-family:'Kanit', system-ui, sans-serif;
+    color:var(--line-white);
+    min-height:100%;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  /* dashed road-line backdrop */
+  .roadbed{
+    width:100%;
+    padding:36px 16px 60px;
+    max-width:720px;
+    position:relative;
+  }
+  .roadbed::before{
+    content:"";
+    position:absolute;
+    left:50%;
+    top:0;
+    bottom:0;
+    width:6px;
+    transform:translateX(-50%);
+    background:repeating-linear-gradient(
+      to bottom,
+      var(--line-yellow) 0 26px,
+      transparent 26px 48px
+    );
+    opacity:.35;
+    z-index:0;
+  }
+
+  header{
+    position:relative;
+    z-index:1;
+    text-align:center;
+    margin-bottom:28px;
+  }
+  header .tag{
+    display:inline-block;
+    font-size:13px;
+    letter-spacing:.02em;
+    color:var(--asphalt);
+    background:var(--line-yellow);
+    padding:4px 12px;
+    border-radius:3px;
+    font-weight:500;
+    margin-bottom:14px;
+  }
+  h1{
+    font-size:clamp(26px,5vw,36px);
+    font-weight:600;
+    margin:0 0 8px;
+    line-height:1.15;
+  }
+  header p{
+    margin:0;
+    color:var(--muted);
+    font-size:15px;
+    font-weight:300;
+  }
+
+  section{
+    position:relative;
+    z-index:1;
+    background:var(--asphalt-2);
+    border:1px solid #383D44;
+    border-radius:10px;
+    padding:22px;
+    margin-bottom:20px;
+  }
+  section h2{
+    font-size:14px;
+    font-weight:500;
+    letter-spacing:.02em;
+    color:var(--muted);
+    margin:0 0 16px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  section h2 .num{
+    width:22px;height:22px;
+    border-radius:50%;
+    background:var(--steel);
+    color:var(--line-white);
+    display:inline-flex;
+    align-items:center;justify-content:center;
+    font-size:12px;
+    flex:none;
+  }
+
+  /* Vehicle grid */
+  .vehicle-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:10px;
+  }
+  @media (max-width:420px){
+    .vehicle-grid{grid-template-columns:repeat(2, 1fr);}
+  }
+  .vcard{
+    background:var(--asphalt);
+    border:1.5px solid #3A3F46;
+    border-radius:8px;
+    padding:14px 8px 12px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    cursor:pointer;
+    transition:border-color .15s ease, transform .1s ease, background .15s ease;
+    color:inherit;
+    font-family:inherit;
+  }
+  .vcard:hover{border-color:#565C64;}
+  .vcard:active{transform:scale(.97);}
+  .vcard svg{width:44px;height:44px;display:block;}
+  .vcard span{font-size:13px;font-weight:400;text-align:center;line-height:1.25;}
+  .vcard[aria-pressed="true"]{
+    border-color:var(--line-yellow);
+    background:#33291A;
+  }
+  .vcard[aria-pressed="true"] svg{ filter:none; }
+  .vcard svg .body{ fill:#C6CBD1; transition:fill .15s ease; }
+  .vcard[aria-pressed="true"] svg .body{ fill:var(--line-yellow); }
+  .vcard svg .glass{ fill:#22252A; }
+  .vcard svg .wheel{ fill:#15171A; }
+
+  /* Junction / direction control */
+  .junction-wrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:18px;
+  }
+  .junction{
+    width:100%;
+    max-width:280px;
+  }
+  .dir-buttons{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    width:100%;
+  }
+  .dbtn{
+    flex:1 1 calc(50% - 5px);
+    min-width:110px;
+    background:var(--asphalt);
+    border:1.5px solid #3A3F46;
+    border-radius:8px;
+    padding:14px 6px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    cursor:pointer;
+    color:inherit;
+    font-family:inherit;
+    transition:border-color .15s ease, transform .1s ease, background .15s ease;
+  }
+  .dbtn:hover{border-color:#565C64;}
+  .dbtn:active{transform:scale(.97);}
+  .dbtn svg{width:30px;height:30px;}
+  .dbtn span{font-size:13px;}
+  .dbtn[aria-pressed="true"]{
+    border-color:var(--go-green);
+    background:#1C3428;
+  }
+  .dbtn[aria-pressed="true"] svg path{ stroke:var(--go-green); }
+  .dbtn svg path{ stroke:#C6CBD1; transition:stroke .15s ease; }
+
+  /* Result panel */
+  .result{
+    position:relative;
+    z-index:1;
+    border:1.5px dashed #4A5058;
+    border-radius:10px;
+    padding:18px 20px;
+    text-align:center;
+    min-height:26px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .result p{
+    margin:0;
+    font-size:17px;
+    font-weight:400;
+    color:var(--muted);
+  }
+  .result p b{
+    color:var(--line-white);
+    font-weight:600;
+  }
+  .result.filled{
+    border-style:solid;
+    border-color:var(--go-green);
+    background:#16261F;
+  }
+  .result.filled p{ color:var(--line-white); }
+
+  :focus-visible{
+    outline:2px solid var(--line-yellow);
+    outline-offset:2px;
+  }
+
+  .history-list{
+    margin:0 0 14px;
+    padding-left:0;
+    list-style:none;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    max-height:260px;
+    overflow-y:auto;
+  }
+  .history-list li{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:var(--asphalt);
+    border:1px solid #3A3F46;
+    border-radius:6px;
+    padding:8px 12px;
+    font-size:14px;
+  }
+  .history-list li .idx{
+    color:var(--muted);
+    font-size:12px;
+    min-width:20px;
+  }
+  .history-list li .kind{
+    font-size:11px;
+    color:var(--asphalt);
+    background:var(--line-yellow);
+    border-radius:3px;
+    padding:2px 6px;
+    font-weight:500;
+    flex:none;
+  }
+  .history-list li .kind.dir{
+    background:var(--go-green);
+    color:var(--line-white);
+  }
+  .history-list li .kind.combo{
+    background:var(--line-white);
+    color:var(--asphalt);
+  }
+  .clear-btn{
+    width:100%;
+    background:transparent;
+    border:1.5px dashed #4A5058;
+    border-radius:8px;
+    padding:10px;
+    color:var(--muted);
+    font-family:inherit;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .clear-btn:hover{
+    border-color:#787f88;
+    color:var(--line-white);
+  }
+  .clear-btn.confirming{
+    border-style:solid;
+    border-color:#D6564F;
+    color:#F0A19D;
+    background:#2E1D1C;
+  }
+
+  .summary-list{
+    margin:0;
+    padding:0;
+    list-style:none;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .summary-list li{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    background:var(--asphalt);
+    border:1px solid #3A3F46;
+    border-radius:6px;
+    padding:10px 14px;
+    font-size:15px;
+  }
+  .summary-list li .count{
+    font-weight:600;
+    color:var(--line-yellow);
+    min-width:1.6em;
+    text-align:right;
+  }
+  .summary-list li .unit{
+    color:var(--muted);
+    font-size:13px;
+  }
+</style>
+</head>
+<body>
+<div class="roadbed">
+
+  <header>
+    <span class="tag">แผงเลือกเส้นทาง</span>
+    <h1>รถอะไร ไปทางไหน</h1>
+    <p>เลือกประเภทรถ แล้วกดทิศทางที่ต้องการ</p>
+  </header>
+
+  <section>
+    <h2><span class="num">1</span>ประเภทรถ</h2>
+    <div class="vehicle-grid" id="vehicleGrid"></div>
+  </section>
+
+  <section>
+    <h2><span class="num">2</span>ทิศทาง</h2>
+    <div class="junction-wrap">
+      <div class="dir-buttons" id="dirButtons"></div>
+    </div>
+  </section>
+
+  <div class="result" id="result">
+    <p>ยังไม่ได้เลือก</p>
+  </div>
+
+  <section id="historySection" style="display:none;">
+    <h2><span class="num">•</span>ประวัติการกดทั้งหมด</h2>
+    <ol class="history-list" id="historyList"></ol>
+    <button type="button" id="clearHistory" class="clear-btn">ล้างประวัติ</button>
+  </section>
+
+  <section id="summarySection" style="display:none;">
+    <h2><span class="num">Σ</span>สรุปโดยรวม</h2>
+    <ul class="summary-list" id="summaryList"></ul>
+  </section>
+
+</div>
+
+<script>
+  const vehicles = [
+    { id:'sedan', label:'รถเก่ง', icon: `
+      <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
+        <path class="body" d="M4 26 C4 22 7 21 10 20 L16 12 C18 9 21 8 25 8 L40 8 C43 8 45 9 47 12 L52 20 C56 21 60 22 60 26 L60 30 C60 32 58 33 56 33 L8 33 C6 33 4 32 4 30 Z"/>
+        <path class="glass" d="M19 19 L22 12 C23 10.5 24 10 26 10 L38 10 C40 10 41 10.5 42 12 L45 19 Z"/>
+        <line x1="32" y1="10" x2="32" y2="19" stroke="#2C3036" stroke-width="1.2"/>
+        <circle class="wheel" cx="16" cy="33" r="5.5"/>
+        <circle class="wheel" cx="48" cy="33" r="5.5"/>
+      </svg>`},
+    { id:'songthaew', label:'รถสองแถว', icon:`
+      <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
+        <path class="body" d="M4 30 L4 16 C4 13 6 11 9 11 L20 11 L23 8 C24 7 25.5 6.5 27 6.5 L48 6.5 C50 6.5 51 7.5 51 9 L51 22 L58 22 C60 22 60 24 60 25 L60 30 C60 32 58 33 56 33 L8 33 C6 33 4 32 4 30 Z"/>
+        <path class="glass" d="M9 15 C9 13.5 10 13 11 13 L18 13 L21 9.5 C22 8.3 23 8 24.5 8 L27 8 L27 15 Z"/>
+        <rect class="glass" x="30" y="9" width="18" height="6" rx="1"/>
+        <line x1="19" y1="22" x2="51" y2="22" stroke="#2C3036" stroke-width="1"/>
+        <circle class="wheel" cx="16" cy="33" r="5.5"/>
+        <circle class="wheel" cx="50" cy="33" r="5.5"/>
+      </svg>`},
+    { id:'moto', label:'รถมอเตอร์ไซค์', icon:`
+      <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
+        <circle class="wheel" cx="14" cy="30" r="7" fill="none" stroke="#15171A" stroke-width="3"/>
+        <circle class="wheel" cx="50" cy="30" r="7" fill="none" stroke="#15171A" stroke-width="3"/>
+        <path class="body" d="M14 30 L26 22 L34 22 L30 14 L38 14 L44 22 L50 30" fill="none" stroke-width="3.4" stroke="#C6CBD1" stroke-linecap="round" stroke-linejoin="round"/>
+        <path class="body" d="M24 14 L34 14" stroke="#C6CBD1" stroke-width="3.4" stroke-linecap="round"/>
+        <circle cx="24" cy="14" r="0" />
+      </svg>`},
+    { id:'midbus', label:'รถบัสกลาง (มินิบัส)', icon:`
+      <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
+        <rect class="body" x="6" y="9" width="46" height="22" rx="4"/>
+        <rect class="glass" x="9" y="12" width="8" height="7" rx="1"/>
+        <rect class="glass" x="19" y="12" width="8" height="7" rx="1"/>
+        <rect class="glass" x="29" y="12" width="8" height="7" rx="1"/>
+        <rect class="glass" x="39" y="12" width="8" height="7" rx="1"/>
+        <rect x="6" y="22" width="46" height="2" fill="#2C3036"/>
+        <circle class="wheel" cx="17" cy="32" r="5.2"/>
+        <circle class="wheel" cx="43" cy="32" r="5.2"/>
+      </svg>`},
+    { id:'bigbus', label:'รถบัสใหญ่', icon:`
+      <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
+        <rect class="body" x="2" y="7" width="56" height="24" rx="4"/>
+        <rect class="glass" x="5" y="10" width="7" height="6.5" rx="1"/>
+        <rect class="glass" x="14" y="10" width="7" height="6.5" rx="1"/>
+        <rect class="glass" x="23" y="10" width="7" height="6.5" rx="1"/>
+        <rect class="glass" x="32" y="10" width="7" height="6.5" rx="1"/>
+        <rect class="glass" x="41" y="10" width="7" height="6.5" rx="1"/>
+        <rect class="glass" x="50" y="10" width="5" height="6.5" rx="1"/>
+        <rect x="2" y="21" width="56" height="2" fill="#2C3036"/>
+        <circle class="wheel" cx="15" cy="32" r="5.2"/>
+        <circle class="wheel" cx="45" cy="32" r="5.2"/>
+      </svg>`},
+    { id:'truck6', label:'รถ 6 ล้อ', icon:`
+      <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
+        <rect class="body" x="4" y="14" width="34" height="17" rx="1.5"/>
+        <path class="body" d="M38 18 L48 18 C50 18 51 19 52 21 L55 26 L55 31 L38 31 Z"/>
+        <rect class="glass" x="41" y="20" width="8" height="6" rx="1"/>
+        <circle class="wheel" cx="14" cy="32" r="5"/>
+        <circle class="wheel" cx="25" cy="32" r="5"/>
+        <circle class="wheel" cx="48" cy="32" r="5"/>
+      </svg>`},
+    { id:'van', label:'รถตู้', icon:`
+      <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
+        <path class="body" d="M4 28 L4 16 C4 12 7 10 11 10 L44 10 C47 10 49 12 50 15 L54 22 L58 22 C60 22 60 24 60 25 L60 28 C60 30 58 31 56 31 L8 31 C6 31 4 30 4 28 Z"/>
+        <rect class="glass" x="8" y="13" width="9" height="7" rx="1"/>
+        <rect class="glass" x="19" y="13" width="9" height="7" rx="1"/>
+        <rect class="glass" x="30" y="13" width="9" height="7" rx="1"/>
+        <path class="glass" d="M41 13 L45.5 13 C47 13 47.7 14 48.3 15.3 L50.5 20 L41 20 Z"/>
+        <line x1="17" y1="20" x2="17" y2="31" stroke="#2C3036" stroke-width="1"/>
+        <circle class="wheel" cx="16" cy="31" r="5.2"/>
+        <circle class="wheel" cx="48" cy="31" r="5.2"/>
+      </svg>`},
+    { id:'pickup', label:'รถกระบะ', icon:`
+      <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
+        <path class="body" d="M4 28 L4 25 C4 23 5.5 22 7 22 L14 22 L14 14 C14 12 15.5 10.5 17.5 10.5 L28 10.5 C30 10.5 31.5 11.5 32.5 13 L36 18 L36 22 L58 22 C60 22 60 24 60 25 L60 28 C60 30 58 31 56 31 L8 31 C6 31 4 30 4 28 Z"/>
+        <path class="glass" d="M17.5 13 C17.5 12.4 18 12 18.5 12 L27 12 C28 12 28.7 12.4 29.3 13.3 L32 17.5 L17.5 17.5 Z"/>
+        <rect x="36" y="19" width="22" height="1.4" fill="#2C3036"/>
+        <line x1="14" y1="22" x2="14" y2="31" stroke="#2C3036" stroke-width="1"/>
+        <circle class="wheel" cx="17" cy="31" r="5.2"/>
+        <circle class="wheel" cx="49" cy="31" r="5.2"/>
+      </svg>`},
+    { id:'truck10', label:'รถ 10 ล้อ', icon:`
+      <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
+        <rect class="body" x="2" y="13" width="36" height="18" rx="1.5"/>
+        <path class="body" d="M38 17 L47 17 C49 17 50 18 51 20 L54 26 L54 31 L38 31 Z"/>
+        <rect class="glass" x="41" y="19.5" width="7" height="6" rx="1"/>
+        <circle class="wheel" cx="12" cy="32" r="5"/>
+        <circle class="wheel" cx="22" cy="32" r="5"/>
+        <circle class="wheel" cx="45" cy="32" r="5"/>
+        <circle class="wheel" cx="55" cy="32" r="5"/>
+      </svg>`},
+    { id:'trailer', label:'รถพ่วง', icon:`
+      <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
+        <path class="body" d="M2 18 L10 18 C12 18 13 19 14 21 L16 26 L16 31 L2 31 Z"/>
+        <rect class="glass" x="4.5" y="20.5" width="6" height="5.5" rx="1"/>
+        <rect class="body" x="18" y="14" width="44" height="17" rx="1.5"/>
+        <line x1="18" y1="24" x2="62" y2="24" stroke="#2C3036" stroke-width="1"/>
+        <circle class="wheel" cx="9" cy="32" r="4.6"/>
+        <circle class="wheel" cx="27" cy="32" r="4.6"/>
+        <circle class="wheel" cx="36" cy="32" r="4.6"/>
+        <circle class="wheel" cx="53" cy="32" r="4.6"/>
+        <circle class="wheel" cx="60" cy="32" r="4.6"/>
+      </svg>`},
+  ];
+
+  const directions = [
+    { id:'left', label:'เลี้ยวซ้าย', path:'M22 8 L8 20 L22 32' , extra:'M8 20 H34' },
+    { id:'straight', label:'ตรงไป', path:'M20 32 L20 8 M12 16 L20 8 L28 16' },
+    { id:'right', label:'เลี้ยวขวา', path:'M18 8 L32 20 L18 32', extra:'M32 20 H6' },
+    { id:'uturn', label:'กลับรถ', path:'M28 10 L14 10 C9 10 6 13 6 18 C6 23 9 26 14 26 L24 26', extra:'M18 20 L24 26 L18 32' },
+  ];
+
+  let selectedVehicle = null;
+  let selectedDirection = null;
+  let lastCombo = null;
+  const clickHistory = [];
+
+  const historySection = document.getElementById('historySection');
+  const historyList = document.getElementById('historyList');
+  const summarySection = document.getElementById('summarySection');
+  const summaryList = document.getElementById('summaryList');
+
+  function logClick(kind, label){
+    clickHistory.push({ kind, label, time: new Date() });
+    renderHistory();
+  }
+
+  function logCombo(){
+    lastCombo = { vehicle: selectedVehicle.label, direction: selectedDirection.label };
+    clickHistory.push({
+      kind: 'combo',
+      label: `${selectedVehicle.label} — ${selectedDirection.label}`,
+      time: new Date()
+    });
+    renderHistory();
+    resetSelection();
+  }
+
+  function resetSelection(){
+    selectedVehicle = null;
+    selectedDirection = null;
+    [...vehicleGrid.children].forEach(c => c.setAttribute('aria-pressed', 'false'));
+    [...dirButtons.children].forEach(c => c.setAttribute('aria-pressed', 'false'));
+  }
+
+  function renderHistory(){
+    if (clickHistory.length === 0){
+      historySection.style.display = 'none';
+    } else {
+      historySection.style.display = '';
+      historyList.innerHTML = clickHistory.map((h, i) => {
+        const timeStr = h.time.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        let kindLabel, kindClass;
+        if (h.kind === 'vehicle'){ kindLabel = 'รถ'; kindClass = ''; }
+        else if (h.kind === 'direction'){ kindLabel = 'ทิศทาง'; kindClass = 'dir'; }
+        else { kindLabel = 'รวม'; kindClass = 'combo'; }
+        return `<li>
+          <span class="idx">${i + 1}.</span>
+          <span class="kind ${kindClass}">${kindLabel}</span>
+          <span>${h.label}</span>
+          <span style="margin-left:auto;color:var(--muted);font-size:12px;">${timeStr}</span>
+        </li>`;
+      }).join('');
+      historyList.scrollTop = historyList.scrollHeight;
+    }
+    renderSummary();
+  }
+
+  function renderSummary(){
+    if (clickHistory.length === 0){
+      summarySection.style.display = 'none';
+      return;
+    }
+    const counts = new Map();
+    clickHistory.forEach(h => {
+      if (h.kind !== 'combo') return;
+      counts.set(h.label, (counts.get(h.label) || 0) + 1);
+    });
+    if (counts.size === 0){
+      summarySection.style.display = 'none';
+      return;
+    }
+    summarySection.style.display = '';
+    summaryList.innerHTML = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count]) => {
+        const [vehicle, direction] = label.split(' — ');
+        return `<li>
+          <span class="count">${count}</span>
+          <span class="unit">คัน</span>
+          <span>${vehicle} ${direction}</span>
+        </li>`;
+      }).join('');
+  }
+
+  let clearArmed = false;
+  let clearTimer = null;
+  const clearBtn = document.getElementById('clearHistory');
+  clearBtn.addEventListener('click', () => {
+    if (clickHistory.length === 0) return;
+    if (!clearArmed){
+      clearArmed = true;
+      clearBtn.textContent = 'กดอีกครั้งเพื่อยืนยันล้างประวัติ';
+      clearBtn.classList.add('confirming');
+      clearTimer = setTimeout(() => {
+        clearArmed = false;
+        clearBtn.textContent = 'ล้างประวัติ';
+        clearBtn.classList.remove('confirming');
+      }, 3000);
+      return;
+    }
+    clearTimeout(clearTimer);
+    clearArmed = false;
+    clearBtn.textContent = 'ล้างประวัติ';
+    clearBtn.classList.remove('confirming');
+    clickHistory.length = 0;
+    lastCombo = null;
+    renderHistory();
+    updateResult();
+  });
+
+  const vehicleGrid = document.getElementById('vehicleGrid');
+  vehicles.forEach(v => {
+    const btn = document.createElement('button');
+    btn.className = 'vcard';
+    btn.type = 'button';
+    btn.setAttribute('aria-pressed','false');
+    btn.dataset.id = v.id;
+    btn.innerHTML = v.icon + `<span>${v.label}</span>`;
+    btn.addEventListener('click', () => {
+      selectedVehicle = v;
+      [...vehicleGrid.children].forEach(c => c.setAttribute('aria-pressed', c === btn ? 'true':'false'));
+      if (selectedDirection) {
+        logCombo();
+      }
+      updateResult();
+    });
+    vehicleGrid.appendChild(btn);
+  });
+
+  const dirButtons = document.getElementById('dirButtons');
+  directions.forEach(d => {
+    const btn = document.createElement('button');
+    btn.className = 'dbtn';
+    btn.type = 'button';
+    btn.setAttribute('aria-pressed','false');
+    btn.dataset.id = d.id;
+    btn.innerHTML = `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="${d.path}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${d.extra ? `<path d="${d.extra}" stroke-width="3.2" stroke-linecap="round"/>` : ''}
+      </svg><span>${d.label}</span>`;
+    btn.addEventListener('click', () => {
+      selectedDirection = d;
+      [...dirButtons.children].forEach(c => c.setAttribute('aria-pressed', c === btn ? 'true':'false'));
+      if (selectedVehicle) {
+        logCombo();
+      }
+      updateResult();
+    });
+    dirButtons.appendChild(btn);
+  });
+
+  const result = document.getElementById('result');
+  function updateResult(){
+    if (selectedVehicle && selectedDirection){
+      result.classList.add('filled');
+      result.innerHTML = `<p><b>${selectedVehicle.label}</b> — <b>${selectedDirection.label}</b></p>`;
+    } else if (selectedVehicle || selectedDirection){
+      result.classList.remove('filled');
+      const missing = !selectedVehicle ? 'ยังไม่ได้เลือกประเภทรถ' : 'ยังไม่ได้เลือกทิศทาง';
+      const have = selectedVehicle ? selectedVehicle.label : selectedDirection.label;
+      result.innerHTML = `<p>เลือกแล้ว: <b>${have}</b> — ${missing}</p>`;
+    } else if (lastCombo){
+      result.classList.add('filled');
+      result.innerHTML = `<p><b>${lastCombo.vehicle}</b> — <b>${lastCombo.direction}</b> <span style="color:var(--muted);font-weight:300;">(บันทึกแล้ว เลือกคู่ถัดไปได้เลย)</span></p>`;
+    } else {
+      result.classList.remove('filled');
+      result.innerHTML = `<p>ยังไม่ได้เลือก</p>`;
+    }
+  }
+</script>
+</body>
+</html>
